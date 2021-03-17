@@ -7,6 +7,7 @@ class ParticleContainer {
         int topParticleIndex;
 
         ParticleContainer(int);
+        void clear();
         void emit(float, float, float, float, float, int, int*, CRGB);
         void kill(int);
         void update();
@@ -20,10 +21,6 @@ ParticleContainer::ParticleContainer(int mp) {
 
 void ParticleContainer::emit(float size, float position, float velocity, float acceleration, float jerk, int lifespan, int* brightnessProfile, CRGB color) {
     if (topParticleIndex < maxParticles) {
-        // Serial.print("Emitting particle with data: ");
-        // Serial.print(topParticleIndex);
-        // Serial.print("\t");
-        // Serial.println(acceleration);
         particles[topParticleIndex++] = new Particle(position, size, velocity, acceleration, jerk, lifespan, brightnessProfile, color);
     }
 }
@@ -32,6 +29,13 @@ void ParticleContainer::kill(int index) {
     topParticleIndex--;
     particles[index] = particles[topParticleIndex];
     particles[topParticleIndex] = NULL;
+}
+
+void ParticleContainer::clear() { //TODO broken
+    for (int i = 0; i < topParticleIndex; i++) {
+        particles[i] = NULL;
+    }
+    topParticleIndex = 0;
 }
 
 void ParticleContainer::update() {

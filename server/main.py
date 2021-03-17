@@ -3,17 +3,17 @@ import queue
 import sys
 import socket
 import threading
-import time
+import scipy.signal as sc
+import random
 
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 import numpy as np
 import sounddevice as sd
 
-UDP_IP1 = "172.24.132.226"
+UDP_IP1 = "172.24.133.68"
 UDP_IP2 = "172.24.134.198"
 UDP_PORT = 2390
-MESSAGE = "1"
 
 last_s = 0
 s = 0
@@ -35,7 +35,7 @@ def audio():
     print(sd.query_devices())
 
     samplerate = sd.query_devices(device, 'input')['default_samplerate']
-    fftsize = 2048
+    fftsize = 1024
     q = queue.Queue()
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -61,17 +61,20 @@ def audio():
 
             plotdata = np.roll(plotdata, -1, axis=0)
             plotdata[0] = data
-            if (data > 20):
-                sock.sendto(bytes(MESSAGE + chr(int(data)), "utf-8"), (UDP_IP1, UDP_PORT))
-            if (data > 40):
-                sock.sendto(bytes(MESSAGE + chr(int(data)), "utf-8"), (UDP_IP2, UDP_PORT))
-            
-            #plotdata = np.reshape(data, (fftsize+1, 1))
+            last_global_beat = global_beat
+            global_beat = data
             #print(plotdata.reshape(-1))
-            # peaks, _ = sc.find_peaks(plotdata.reshape(-1), height=8, distance=3, threshold=5, prominence=0.6)
-            # for peak in peaks:
-            #     plotdata[peak] = 100
-
+            peaks, _ = sc.find_peaks(plotdata.reshape(-1), height=20, distance=3, prominence=0.6)
+            print(len(peaks)*15)
+            if (global_beat > 40 and last_global_beat < 40):
+                # first 2 bytes: type of control packet
+                # second 2 bytes: beat strength
+                # third 2 bytes: number of peaks (energy)
+                MESSAGE = "0" + intToChrConstrained(global_beat/2) + intToChrConstrained(int(random.randint(0, 255)))
+                MESSAGE2 = "1" + intToChrConstrained(global_beat/2) + intToChrConstrained(int(random.randint(0, 255)))
+                sock.sendto(bytes(MESSAGE, "utf-8"), (UDP_IP1, UDP_PORT))
+                sock.sendto(bytes(MESSAGE2, "utf-8"), (UDP_IP2, UDP_PORT))
+            
         for column, line in enumerate(lines):
             line.set_ydata(plotdata[:, column])
         return lines
@@ -97,6 +100,9 @@ def audio():
     ani = FuncAnimation(fig, update_plot, interval=30, blit=True)
     with stream:
         plt.show()
+
+def intToChrConstrained(x):
+    return chr(min(255, max(0, int(x))))
     
 if __name__ == "__main__":
     audio()

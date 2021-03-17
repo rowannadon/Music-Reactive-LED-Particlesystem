@@ -10,6 +10,7 @@ class Particle {
         float jerk;
         int life;
         int lifespan;
+        int brightness;
 
         CRGB color;
 
@@ -29,6 +30,7 @@ Particle::Particle(float position, float size, float velocity, float acceleratio
     life = ls;
     lifespan = ls;
     color = c;
+    brightness = 255;
 }
 
 bool Particle::update() {
@@ -37,22 +39,27 @@ bool Particle::update() {
     vel += acc;
     acc += jerk;
     life--;
+    brightness = max((int)pow(2.7182, (5.545/(double)lifespan)*(double)life), 64);
 
     if (life < 0) {
         return true;
     }
 
     if (pos < 0) {
-        //vel *= -1;
+        //vel *= -0.6;
+        //pos = 0;
         return true;
-    } else if (pos+length > 144) {
-        //vel *= -1;
+    } else if (pos+length > 73) {
+        //vel *= -0.6;
+        //pos = 73;
         return true;
     }
     return false;
 }
 
 void Particle::render() {
-    //Serial.println("rendering");
-    drawPixels(constrain(pos, 0, 144), constrain(lastPos, 0, 144), color);
+    if (vel < 0)
+        drawPixels(constrain(pos, 0, 72), constrain(lastPos+length, 0, 72), color, brightness);
+    else
+        drawPixels(constrain(pos+length, 0, 72), constrain(lastPos, 0, 72), color, brightness);
 }

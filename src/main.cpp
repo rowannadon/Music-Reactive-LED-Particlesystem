@@ -7,7 +7,7 @@
 #include <AsyncUDP.h>
 
 #define LED_PIN     18
-#define NUM_LEDS    145
+#define NUM_LEDS    73
 #define BRIGHTNESS  255
 #define LED_TYPE    WS2812
 #define SSID "WolfieNet-IoT"
@@ -18,11 +18,13 @@ void udpListenTask(void * params);
 void emitterTask(void * params);
 
 CRGB leds[NUM_LEDS];
-ParticleContainer p(32);
+ParticleContainer p(64);
 
-char last_beat = 0;
-char beat = 0;
-int r = 0;
+uint16_t mode = '3';
+uint16_t color = 0;
+uint16_t onsetStrength = 0;
+uint16_t paletteIndex = 0;
+
 TaskHandle_t emitterTaskHandle;
 
 AsyncUDP udp;
@@ -50,26 +52,13 @@ void setup() {
         Serial.print("UDP Listening on IP: ");
         Serial.println(WiFi.localIP());
         udp.onPacket([](AsyncUDPPacket packet) {
-            Serial.print("UDP Packet Type: ");
-            Serial.print(packet.isBroadcast()?"Broadcast":packet.isMulticast()?"Multicast":"Unicast");
-            Serial.print(", From: ");
-            Serial.print(packet.remoteIP());
-            Serial.print(":");
-            Serial.print(packet.remotePort());
-            Serial.print(", To: ");
-            Serial.print(packet.localIP());
-            Serial.print(":");
-            Serial.print(packet.localPort());
-            Serial.print(", Length: ");
-            Serial.print(packet.length());
-            Serial.print(", Data: ");
-            Serial.write(packet.data(), packet.length());
-            Serial.println();
-            beat = packet.data()[0];
-            if (beat == '1')
+            if (packet.data()[0] == '0') {
+                onsetStrength = packet.data()[1];
+                color = packet.data()[2] + random8(20);
                 xTaskNotify(emitterTaskHandle, packet.data()[1], eSetValueWithOverwrite);
-            //reply to the client
-            packet.printf("Got %u bytes of data", packet.length());
+            } else {
+                mode = packet.data()[0];
+            }
         });
     }
 
@@ -78,7 +67,7 @@ void setup() {
 }
 
 void loop() {
-    delay(1500);
+    delay(1000);
 }
 
 void emitterTask(void * params) {
@@ -86,10 +75,47 @@ void emitterTask(void * params) {
     while (true) {
         uint32_t ulNotificationValue = ulTaskNotifyTake(pdTRUE, xMaxBlockTime);
         if (ulNotificationValue > 0) {
-            r++;
-            //float v = (float)ulNotificationValue / 50.0;
-            p.emit(1, 36, 1, 0.01, 0, 200, NULL, ColorFromPalette(RainbowColors_p, r, 255, LINEARBLEND));
-            p.emit(1, 36, -1, -0.01, 0, 200, NULL, ColorFromPalette(RainbowColors_p, r, 255, LINEARBLEND));
+            switch (mode) {
+                case '1':
+                    //Serial.println(energy);
+                    p.emit(1, // length
+                        1, // position
+                        min((log2((float)ulNotificationValue) - 3), 3.0), //  velocity
+                        -0.06, //acceleration
+                        0, // jerk
+                        400, // lifespan
+                        NULL, // TODO brightness profile
+                        ColorFromPalette(RainbowColors_p, color, 255, LINEARBLEND) ); // color
+                    break;
+                case '2':
+                    p.emit(1, // length
+                        36, // position
+                        -1, //  velocity
+                        -0.03, //acceleration
+                        0, // jerk
+                        100, // lifespan
+                        NULL, // TODO brightness profile
+                        ColorFromPalette(RainbowColors_p, ulNotificationValue, 255, LINEARBLEND) ); // color
+                    p.emit( 1, // length
+                        36, // position
+                        1, //  velocity
+                        0.03, //acceleration
+                        0, // jerk
+                        100, // lifespan
+                        NULL, // TODO brightness profile
+                        ColorFromPalette(RainbowColors_p, onsetStrength, 255, LINEARBLEND) ); // color
+                    break;
+                case '3':
+                    p.emit(3, // length
+                        random8(20)+50, // position
+                        0, //  velocity
+                        -0.03, //acceleration
+                        0, // jerk
+                        150, // lifespan
+                        NULL, // TODO brightness profile
+                        ColorFromPalette(RainbowColors_p, random8(), 255, LINEARBLEND) ); // color
+                    break;
+            }
         }
     
     }
@@ -97,20 +123,14 @@ void emitterTask(void * params) {
 
 void ledTask(void * params) {
     while(true) {
+        // update and render particles
         p.update();
         p.render();
-        if (r < 255) {
-            r++;
-        } else {
-            r = 0;
-        }
 
         fadeToBlackBy(leds, NUM_LEDS, 150);
-        delay(5);
-
-
         FastLED.show();
-        vTaskDelay(5 / portTICK_PERIOD_MS);
+
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
     vTaskDelete(NULL);

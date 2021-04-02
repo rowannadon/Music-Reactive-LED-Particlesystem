@@ -11,7 +11,7 @@
 #define BRIGHTNESS  255
 #define LED_TYPE    WS2812
 #define SSID "WolfieNet-IoT"
-#define UDP_PORT 2390
+#define UDP_PORT 4445
 
 void ledTask(void * params);
 void udpListenTask(void * params);
@@ -20,7 +20,7 @@ void emitterTask(void * params);
 CRGB leds[NUM_LEDS];
 ParticleContainer p(64);
 
-uint16_t mode = '3';
+uint16_t mode = '1';
 uint16_t color = 0;
 uint16_t onsetStrength = 0;
 uint16_t paletteIndex = 0;
@@ -52,6 +52,7 @@ void setup() {
         Serial.print("UDP Listening on IP: ");
         Serial.println(WiFi.localIP());
         udp.onPacket([](AsyncUDPPacket packet) {
+            Serial.println("Recieved packet...");
             if (packet.data()[0] == '0') {
                 onsetStrength = packet.data()[1];
                 color = packet.data()[2] + random8(20);
@@ -59,6 +60,7 @@ void setup() {
             } else {
                 mode = packet.data()[0];
             }
+            packet.printf("Got %u bytes of data", packet.length());
         });
     }
 
@@ -67,6 +69,9 @@ void setup() {
 }
 
 void loop() {
+    char packetBuffer[5];
+    sprintf(packetBuffer,"PING");
+    
     delay(1000);
 }
 

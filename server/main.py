@@ -12,8 +12,8 @@ import numpy as np
 import sounddevice as sd
 
 UDP_IP1 = "172.24.133.68"
-UDP_IP2 = "172.24.134.198"
-UDP_PORT = 2390
+UDP_IP2 = "172.24.134.109"
+UDP_PORT = 4445
 
 last_s = 0
 s = 0
@@ -24,6 +24,8 @@ last_global_beat = 0
 
 length = 100
 plotdata = np.zeros((length, 1))
+
+peaks = 10;
 
 def audio():
     global global_beat
@@ -53,9 +55,10 @@ def audio():
         global plotdata
         global global_beat
         global last_global_beat
+        global peaks
         while True:
             try:
-                data = q.get_nowait()
+                data, sum = q.get_nowait()
             except queue.Empty:
                 break
 
@@ -64,16 +67,17 @@ def audio():
             last_global_beat = global_beat
             global_beat = data
             #print(plotdata.reshape(-1))
-            peaks, _ = sc.find_peaks(plotdata.reshape(-1), height=20, distance=3, prominence=0.6)
-            print(len(peaks)*15)
-            if (global_beat > 40 and last_global_beat < 40):
+            #peaks, _ = sc.find_peaks(plotdata[:50].reshape(-1), height=20, distance=3, prominence=0.6)
+            
+            if (global_beat > 30 and last_global_beat < 30):
+                print(int((np.log10(sum)-1.9)*300))
                 # first 2 bytes: type of control packet
                 # second 2 bytes: beat strength
                 # third 2 bytes: number of peaks (energy)
-                MESSAGE = "0" + intToChrConstrained(global_beat/2) + intToChrConstrained(int(random.randint(0, 255)))
-                MESSAGE2 = "1" + intToChrConstrained(global_beat/2) + intToChrConstrained(int(random.randint(0, 255)))
+                MESSAGE = "0" + intToChrConstrained(global_beat/2) + intToChrConstrained(int((np.log10(sum)-1.9)*500))
+                #MESSAGE2 = "1" + intToChrConstrained(global_beat/2) + intToChrConstrained(int(random.randint(0, 255)))
                 sock.sendto(bytes(MESSAGE, "utf-8"), (UDP_IP1, UDP_PORT))
-                sock.sendto(bytes(MESSAGE2, "utf-8"), (UDP_IP2, UDP_PORT))
+                #sock.sendto(bytes(MESSAGE2, "utf-8"), (UDP_IP2, UDP_PORT))
             
         for column, line in enumerate(lines):
             line.set_ydata(plotdata[:, column])
@@ -90,7 +94,7 @@ def audio():
             #magnitude /= max(max(magnitude), 10)
             last_s = s
             s = sum(magnitude[1:])
-            q.put(max(s-last_s, 0));
+            q.put((max(s-last_s, 0), s));
         else:
             print('no input')
 

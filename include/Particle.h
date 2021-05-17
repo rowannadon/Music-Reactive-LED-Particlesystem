@@ -46,9 +46,9 @@ bool Particle::update() {
     }
 
     if (pos < 0) {
-        //vel *= -0.6;
+        vel *= -0.6;
         //pos = 0;
-        return true;
+        //return true;
     } else if (pos+length > 73) {
         //vel *= -0.6;
         //pos = 73;

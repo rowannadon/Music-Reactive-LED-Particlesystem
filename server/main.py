@@ -70,11 +70,11 @@ def audio():
             #peaks, _ = sc.find_peaks(plotdata[:50].reshape(-1), height=20, distance=3, prominence=0.6)
             
             if (global_beat > 30 and last_global_beat < 30):
-                print(int((np.log10(sum)-1.9)*300))
+                print(int((np.log10(sum)-1.9)*200))
                 # first 2 bytes: type of control packet
                 # second 2 bytes: beat strength
                 # third 2 bytes: number of peaks (energy)
-                MESSAGE = "0" + intToChrConstrained(global_beat/2) + intToChrConstrained(int((np.log10(sum)-1.9)*500))
+                MESSAGE = "0" + intToChrConstrained(global_beat/2) + intToChrConstrained(int((np.log10(sum)-1.9)*400))
                 #MESSAGE2 = "1" + intToChrConstrained(global_beat/2) + intToChrConstrained(int(random.randint(0, 255)))
                 sock.sendto(bytes(MESSAGE, "utf-8"), (UDP_IP1, UDP_PORT))
                 #sock.sendto(bytes(MESSAGE2, "utf-8"), (UDP_IP2, UDP_PORT))
